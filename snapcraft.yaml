@@ -92,6 +92,36 @@ parts:
       cp -R clang+llvm-*/ $SNAPCRAFT_PART_INSTALL/usr/
     override-prime: ''
 
+  lucetc:
+    plugin: nil
+    after:
+      - clang
+      - rust
+    # FIXME: extract that information from firefox's source tarball
+    # in taskcluster/ci/fetch/toolchains.yml (lucetc-source section)
+    source: https://github.com/PLSysSec/lucet_sandbox_compiler.git
+    source-commit: d582d76bf0d17984501f3933688bf7a1eb5cf208
+    build-packages:
+      - cmake
+      - make
+    override-build: |
+      export PATH=$HOME/.cargo/bin:$PATH
+      export CC=$SNAPCRAFT_STAGE/usr/bin/clang
+      make build
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
+      cp target/release/lucetc $SNAPCRAFT_PART_INSTALL/usr/bin/
+    override-prime: ''
+
+  wasi-sdk:
+    plugin: nil
+    build-packages:
+      - wget
+    override-pull: |
+      wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sysroot-12.0.tar.gz
+    override-build: |
+      tar -C $SNAPCRAFT_STAGE -xf wasi-sysroot-*.tar.gz
+    override-prime: ''
+
   nodejs:
     plugin: nil
     build-packages:
@@ -122,6 +152,8 @@ parts:
     after:
       - rust
       - cbindgen
+      - lucetc
+      - wasi-sdk
       - clang
       - nodejs
       - apikeys
@@ -157,6 +189,7 @@ parts:
       export PATH=$HOME/.cargo/bin:$PATH
       GNOME_SDK_SNAP=/snap/gnome-3-38-2004-sdk/current
       export LDFLAGS="-Wl,-rpath-link=$GNOME_SDK_SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET -Wl,-rpath-link=$GNOME_SDK_SNAP/usr/lib"
+      export WASI_SYSROOT=$SNAPCRAFT_STAGE/wasi-sysroot
       MACH="env -u LD_LIBRARY_PATH -u PYTHONPATH /usr/bin/python3 ./mach"
       $MACH create-mach-environment
       $MACH configure --prefix=$SNAPCRAFT_PART_INSTALL/usr
