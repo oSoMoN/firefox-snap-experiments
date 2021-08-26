@@ -26,7 +26,7 @@ if [ ! -d "$DOTMOZILLA" ]; then
       done
       # Patch the imported profiles to set the default one for use by the snap
       # (legacy mode, no dedicated profiles).
-      $SNAP/patch-default-profile.py
+      $SNAP/patch-default-profile.py "$DOTMOZILLA/firefox/profiles.ini"
       TS2=$(date +%s.%3N)
       T=$(printf "$TS1 $TS2" | awk '{printf "%.3f",$2-$1}')
       printf "Import done in $T s\n"

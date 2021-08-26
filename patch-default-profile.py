@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import configparser
-import os
 import os.path
+import sys
 
 
 # Mozilla products, when not packaged as a snap, use dedicated profiles per
@@ -15,12 +15,7 @@ import os.path
 DEB_INSTALL_HASH = '4F96D1932A9F858E'
 
 
-def _patch_imported_profiles():
-    profiles_file = os.path.join(os.environ['SNAP_USER_COMMON'],
-                                 '.mozilla', 'firefox', 'profiles.ini')
-    if not os.path.isfile(profiles_file):
-        return
-
+def _patch_imported_profiles(profiles_file):
     profiles = configparser.RawConfigParser()
     profiles.optionxform = lambda option: option
     profiles.read(profiles_file)
@@ -61,4 +56,7 @@ def _patch_imported_profiles():
 
 
 if __name__ == '__main__':
-    _patch_imported_profiles()
+    if len(sys.argv) != 2 or not os.path.isfile(sys.argv[1]):
+        print('Usage: {} /path/to/profiles_dir/profiles.ini'.format(sys.argv[0])
+        sys.exit(1)
+    _patch_imported_profiles(sys.argv[1])
