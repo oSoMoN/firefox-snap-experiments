@@ -6,5 +6,5 @@ ac_add_options --disable-updater
 ac_add_options --disable-tests
 ac_add_options --disable-debug-symbols
 export MOZILLA_OFFICIAL=1
-export MOZ_LTO=cross
+#export MOZ_LTO=cross
 export WASM_SANDBOXED_LIBRARIES=graphite,ogg,hunspell
