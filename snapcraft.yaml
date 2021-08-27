@@ -115,11 +115,18 @@ parts:
   wasi-sdk:
     plugin: nil
     build-packages:
+      - patch
       - wget
     override-pull: |
-      wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sysroot-12.0.tar.gz
+      WASI_RELEASE=12.0
+      ROOT=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12
+      wget $ROOT/wasi-sysroot-$WASI_RELEASE.tar.gz
+      wget $ROOT/libclang_rt.builtins-wasm32-wasi-$WASI_RELEASE.tar.gz
+      wget -O libcxx-stdcpp-threads.patch https://github.com/llvm/llvm-project/commit/871f96eed3797061c8b1c82fb77d077d110a2da7.patch
     override-build: |
       tar -C $SNAPCRAFT_STAGE -xf wasi-sysroot-*.tar.gz
+      tar -C $SNAPCRAFT_STAGE/usr/lib/clang/* -xf libclang_rt.builtins-wasm32-wasi-*.tar.gz
+      patch -d $SNAPCRAFT_STAGE/wasi-sysroot/include/c++/v1 -p3 < libcxx-stdcpp-threads.patch
     override-prime: ''
 
   nodejs:
