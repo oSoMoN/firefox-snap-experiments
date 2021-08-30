@@ -92,6 +92,26 @@ parts:
       cp -R clang+llvm-*/ $SNAPCRAFT_PART_INSTALL/usr/
     override-prime: ''
 
+  llvm-gold:
+    plugin: nil
+    after:
+      - clang
+    build-packages:
+      - binutils-dev
+      - cmake
+      - make
+      - wget
+    override-pull: |
+      LLVM_RELEASE=12.0.0
+      wget -O - https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_RELEASE/llvm-$LLVM_RELEASE.src.tar.xz | tar -x --xz
+    override-build: |
+      cd llvm-*.src
+      mkdir build
+      cd build
+      cmake -DLLVM_BINUTILS_INCDIR=/usr/include -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SNAPCRAFT_PART_INSTALL/usr ..
+      make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT install-LLVMgold-stripped
+    override-prime: ''
+
   lucetc:
     plugin: nil
     after:
@@ -168,6 +188,7 @@ parts:
       - lucetc
       - wasi-sdk
       - clang
+      - llvm-gold
       - nodejs
       - apikeys
       - distribution
