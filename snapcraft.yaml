@@ -102,14 +102,18 @@ parts:
       - make
       - wget
     override-pull: |
-      LLVM_RELEASE=12.0.0
-      wget -O - https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_RELEASE/llvm-$LLVM_RELEASE.src.tar.xz | tar -x --xz
+      if [ $SNAPCRAFT_TARGET_ARCH != "armhf" ]; then
+        LLVM_RELEASE=12.0.0
+        wget -O - https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_RELEASE/llvm-$LLVM_RELEASE.src.tar.xz | tar -x --xz
+      fi
     override-build: |
-      cd llvm-*.src
-      mkdir build
-      cd build
-      cmake -DLLVM_BINUTILS_INCDIR=/usr/include -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SNAPCRAFT_PART_INSTALL/usr ..
-      make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT install-LLVMgold-stripped
+      if [ $SNAPCRAFT_TARGET_ARCH != "armhf" ]; then
+        cd llvm-*.src
+        mkdir build
+        cd build
+        cmake -DLLVM_BINUTILS_INCDIR=/usr/include -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$SNAPCRAFT_PART_INSTALL/usr ..
+        make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT install-LLVMgold-stripped
+      fi
     override-prime: ''
 
   lucetc:
@@ -219,6 +223,8 @@ parts:
       export MOZCONFIG="$SNAPCRAFT_PROJECT_DIR/mozconfig"
       if [ $SNAPCRAFT_TARGET_ARCH != "armhf" ]; then
         echo "ac_add_options --enable-rust-simd" >> $MOZCONFIG
+        echo "ac_add_options --enable-gold" >> $MOZCONFIG
+        echo "ac_add_options --enable-lto=cross" >> $MOZCONFIG
       fi
       export PATH=$HOME/.cargo/bin:$PATH
       GNOME_SDK_SNAP=/snap/gnome-3-38-2004-sdk/current
