@@ -116,28 +116,6 @@ parts:
       fi
     override-prime: ''
 
-  lucetc:
-    plugin: nil
-    after:
-      - clang
-      - rust
-    # FIXME: extract that information from firefox's source tarball
-    # in taskcluster/ci/fetch/toolchains.yml (lucetc-source section)
-    source: https://github.com/PLSysSec/lucet_sandbox_compiler.git
-    source-commit: d582d76bf0d17984501f3933688bf7a1eb5cf208
-    build-packages:
-      - cmake
-      - make
-    override-build: |
-      if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
-        export PATH=$HOME/.cargo/bin:$PATH
-        export CC=$SNAPCRAFT_STAGE/usr/bin/clang
-        make build
-        mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin
-        cp target/release/lucetc $SNAPCRAFT_PART_INSTALL/usr/bin/
-      fi
-    override-prime: ''
-
   wasi-sdk:
     plugin: nil
     build-packages:
@@ -189,7 +167,6 @@ parts:
     after:
       - rust
       - cbindgen
-      - lucetc
       - wasi-sdk
       - clang
       - llvm-gold
@@ -198,16 +175,21 @@ parts:
       - distribution
       - ffmpeg
     build-packages:
+      - cmake
+      - git
       - libdbus-glib-1-dev
       - libgtk2.0-dev
       - libpython3-dev
       - libx11-xcb-dev
       - libxt-dev
       - m4
+      - make
       - nasm
       - quilt
       - unzip
       - zip
+    build-snaps:
+      - yq
     override-pull: |
       VERSION=$(echo $SNAPCRAFT_PROJECT_VERSION | cut -d- -f1)
       BUILD=$(echo $SNAPCRAFT_PROJECT_VERSION | cut -d- -f2)
@@ -218,7 +200,26 @@ parts:
       for LOCALE in $LOCALES; do
         wget -O langpacks/langpack-$LOCALE@firefox.mozilla.org.xpi $ROOT/linux-x86_64/xpi/$LOCALE.xpi
       done
+      if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
+        # Unfortunately, mach's command to download toolchain artifacts
+        # (e.g. "./mach artifact toolchain --from-build linux64-lucetc")
+        # requires being run from a VCS checkout, and this isn't one, so
+        # some explicit YAML parsing is needed.
+        TOOLCHAINS_YAML=taskcluster/ci/fetch/toolchains.yml
+        LUCETC_FETCH=.lucetc-source.fetch
+        YQ="env -u LD_LIBRARY_PATH yq eval"
+        LUCETC_REPO=$($YQ $LUCETC_FETCH.repo $TOOLCHAINS_YAML)
+        LUCETC_REV=$($YQ $LUCETC_FETCH.revision $TOOLCHAINS_YAML)
+        git clone $LUCETC_REPO lucetc
+        git -C lucetc checkout $LUCETC_REV
+        git -C lucetc submodule update --init --recursive
+      fi
     override-build: |
+      export PATH=$HOME/.cargo/bin:$PATH
+      if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
+        CC=$SNAPCRAFT_STAGE/usr/bin/clang make -C lucetc build
+        export LUCETC=$SNAPCRAFT_PART_BUILD/lucetc/target/release/lucetc
+      fi
       QUILT_PATCHES=$SNAPCRAFT_PROJECT_DIR/patches quilt push -a
       export MOZCONFIG="$SNAPCRAFT_PROJECT_DIR/mozconfig"
       if [ $SNAPCRAFT_TARGET_ARCH != "armhf" ]; then
@@ -226,7 +227,6 @@ parts:
         echo "ac_add_options --enable-gold" >> $MOZCONFIG
         echo "ac_add_options --enable-lto=cross" >> $MOZCONFIG
       fi
-      export PATH=$HOME/.cargo/bin:$PATH
       GNOME_SDK_SNAP=/snap/gnome-3-38-2004-sdk/current
       export LDFLAGS="-Wl,-rpath-link=$GNOME_SDK_SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET -Wl,-rpath-link=$GNOME_SDK_SNAP/usr/lib"
       if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
