@@ -56,8 +56,9 @@ parts:
     plugin: nil
     build-packages:
       - wget
-    override-pull: wget -O rustup.sh https://sh.rustup.rs
-    override-build: sh rustup.sh -q -y
+    override-pull: |
+      wget -O rustup.sh https://sh.rustup.rs
+      sh rustup.sh -q -y
     override-prime: ''
 
   cbindgen:
@@ -69,6 +70,8 @@ parts:
 
   clang-and-llvmgold:
     plugin: nil
+    after:
+      - src-only-parts
     build-packages:
       - binutils-dev
       - cmake
@@ -108,8 +111,6 @@ parts:
 
   wasi-sdk:
     plugin: nil
-    after:
-      - clang-and-llvmgold
     build-packages:
       - patch
       - wget
@@ -124,8 +125,10 @@ parts:
     override-build: |
       if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
         tar -C $SNAPCRAFT_STAGE -xf wasi-sysroot-*.tar.gz
-        tar -C $SNAPCRAFT_STAGE/usr/lib/clang/* -xf libclang_rt.builtins-wasm32-wasi-*.tar.gz
         patch -d $SNAPCRAFT_STAGE/wasi-sysroot/include/c++/v1 -p3 < libcxx-stdcpp-threads.patch
+        LLVM_RELEASE=12.0.0 # needed to break a circular dependency between clang-and-llvmgold and wasi-sdk
+        mkdir -p $SNAPCRAFT_STAGE/usr/lib/clang/$LLVM_RELEASE
+        tar -C $SNAPCRAFT_STAGE/usr/lib/clang/$LLVM_RELEASE -xf libclang_rt.builtins-wasm32-wasi-*.tar.gz
       fi
     override-prime: ''
 
@@ -160,46 +163,24 @@ parts:
       fi
     override-build: |
       if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
+        mkdir -p $SNAPCRAFT_STAGE/usr/bin
         cp yq_linux_amd64 $SNAPCRAFT_STAGE/usr/bin/yq
       fi
     override-prime: ''
 
-  # Launchpad builders have a timeout for how long they are allowed to access
-  # the internet (through a proxy) starting from the start of the build.
-  # Since the firefox part takes a long time to build, we need to ensure
-  # that all other parts that need to access the internet (to e.g. fetch build
-  # or stage packages) are built before it (before the proxy authentication is
-  # revoked).
-  firefox:
+  firefox-src:
     plugin: nil
     after:
-      - rust
-      - cbindgen
-      - clang-and-llvmgold
-      - wasi-sdk
-      - nodejs
-      - apikeys
-      - distribution
-      - ffmpeg
       - yq
     build-packages:
-      - cmake
       - git
-      - libdbus-glib-1-dev
-      - libgtk2.0-dev
-      - libpython3-dev
-      - libx11-xcb-dev
-      - libxt-dev
-      - m4
-      - make
-      - nasm
-      - quilt
-      - unzip
-      - zip
+      - wget
     override-pull: |
       VERSION=$(echo $SNAPCRAFT_PROJECT_VERSION | cut -d- -f1)
       BUILD=$(echo $SNAPCRAFT_PROJECT_VERSION | cut -d- -f2)
       ROOT=https://ftp.mozilla.org/pub/firefox/candidates/$VERSION-candidates/build$BUILD
+      mkdir -p $SNAPCRAFT_STAGE/firefox-src
+      cd $SNAPCRAFT_STAGE/firefox-src
       wget -O - $ROOT/source/firefox-$VERSION.source.tar.xz | tar -x --xz --strip-components=1
       mkdir langpacks
       LOCALES=$(python3 taskcluster/docker/firefox-snap/extract_locales_from_l10n_json.py browser/locales/l10n-changesets.json)
@@ -220,6 +201,60 @@ parts:
         git -C lucetc checkout $LUCETC_REV
         git -C lucetc submodule update --init --recursive
       fi
+    override-prime: ''
+
+  # Launchpad builders have a timeout for how long they are allowed to access
+  # the internet (through a proxy) starting from the start of the build.
+  # Since some parts (like clang-and-llvmgold and firefox) take a long time to
+  # build, we need to ensure that all the other parts that need to access the
+  # internet (to e.g. fetch build or stage packages, or download source and
+  # binaries) are built before them (before the proxy authentication is
+  # revoked).
+  # This list of source-only parts cannot include parts that do anything else
+  # but download source or binaries and unpack them. Building downloaded source
+  # (as a potentially time-consuming operation) should be done in a separate
+  # part that will be built afterwards. See e.g. how building Firefox itself is
+  # broken down into two parts: 'firefox-src' (pulling sources),
+  # and 'firefox' (building).
+  src-only-parts:
+    plugin: nil
+    after:
+      - rust
+      - cbindgen
+      - wasi-sdk
+      - nodejs
+      - yq
+      - distribution
+      - ffmpeg
+      - firefox-src
+
+  firefox:
+    plugin: nil
+    after:
+      - rust
+      - cbindgen
+      - clang-and-llvmgold
+      - wasi-sdk
+      - nodejs
+      - apikeys
+      - distribution
+      - ffmpeg
+      - firefox-src
+    build-packages:
+      - cmake
+      - libdbus-glib-1-dev
+      - libgtk2.0-dev
+      - libpython3-dev
+      - libx11-xcb-dev
+      - libxt-dev
+      - m4
+      - make
+      - nasm
+      - quilt
+      - unzip
+      - zip
+    override-pull: |
+      cp -r $SNAPCRAFT_STAGE/firefox-src/. $SNAPCRAFT_PART_SRC
     override-build: |
       export PATH=$HOME/.cargo/bin:$PATH
       if [ $SNAPCRAFT_TARGET_ARCH = "amd64" ]; then
