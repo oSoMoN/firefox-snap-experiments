@@ -49,6 +49,9 @@ def _patch_imported_profiles(profiles_file):
                         if other_section.startswith('Profile') and \
                             other_section != section:
                             profiles.remove_option(other_section, 'Default')
+                    # Delete the Install section as it is meaningless
+                    # (and unused) in legacy mode.
+                    profiles.remove_section(install_section)
                     # Write back the modified profiles.ini
                     with open(profiles_file, 'w') as profiles_fd:
                         profiles.write(profiles_fd, False)
