@@ -10,9 +10,16 @@ import sys
 # https://support.mozilla.org/en-US/kb/understanding-depth-profile-installation
 # for details.
 # We want to import existing profiles from a package of Firefox typically
-# installed in /usr/lib/firefox, and the corresponding hash used by Mozilla is
-# the following:
-DEB_INSTALL_HASH = '4F96D1932A9F858E'
+# installed in a well-known location. The following is a list of hashes for
+# such well-known locations, in descending order of popularity/likeliness
+# on distributions compatible with snaps:
+KNOWN_INSTALL_HASHES = [
+    '4F96D1932A9F858E', # /usr/lib/firefox (Ubuntu, Debian, Mint, Arch,
+                        # Pop!_OS, Zorin OS, Manjaro, KDE Neon, elementary OS)
+    '11457493C5A56847', # /usr/lib64/firefox (Fedora)
+    '3B6073811A6ABF12', # /usr/lib/firefox-esr (Debian)
+    '46F492E0ACFF84D4', # /usr/lib/firefox-developer-edition (Arch)
+]
 
 
 def _patch_imported_profiles(profiles_file):
@@ -20,8 +27,13 @@ def _patch_imported_profiles(profiles_file):
     profiles.optionxform = lambda option: option
     profiles.read(profiles_file)
 
-    install_section = 'Install{}'.format(DEB_INSTALL_HASH)
-    if not install_section in profiles:
+    known_install = False
+    for known_hash in KNOWN_INSTALL_HASHES:
+        install_section = 'Install{}'.format(known_hash)
+        if install_section in profiles:
+            known_install = True
+            break
+    if not known_install:
         return
 
     try:
