@@ -22,7 +22,7 @@ if [ ! -d "$DOTMOZILLA" ]; then
       # Search and replace absolute file paths in plain-text config files.
       for FILENAME in "pkcs11.txt" "extensions.json"; do
         find "$DOTMOZILLA/firefox" -name "$FILENAME" \
-            -exec sed -i 's#$FIREFOX_CONFIG#$DOTMOZILLA/firefox#g' {} \;
+            -exec sed -i "s#$FIREFOX_CONFIG#$DOTMOZILLA/firefox#g" {} \;
       done
       # Patch the imported profiles to set the default one for use by the snap
       # (legacy mode, no dedicated profiles).
