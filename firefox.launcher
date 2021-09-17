@@ -5,6 +5,8 @@ REALHOME=$(getent passwd $(id -u) | cut -d ':' -f 6)
 # When running the snap for the first time, try and locate an existing
 # firefox config in $HOME/.mozilla/firefox, and import it.
 # This requires the personal-files plug to be connected.
+# This is a stopgap measure until proper profile migration is implemented
+# in firefox (see https://bugzilla.mozilla.org/1730530).
 DOTMOZILLA="$SNAP_USER_COMMON/.mozilla"
 if [ ! -d "$DOTMOZILLA" ]; then
   FIREFOX_CONFIG="$REALHOME/.mozilla/firefox"
