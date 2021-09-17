@@ -14,11 +14,11 @@ import sys
 # such well-known locations, in descending order of popularity/likeliness
 # on distributions compatible with snaps:
 KNOWN_INSTALL_HASHES = [
-    '4F96D1932A9F858E', # /usr/lib/firefox (Ubuntu, Debian, Mint, Arch,
-                        # Pop!_OS, Zorin OS, Manjaro, KDE Neon, elementary OS)
-    '11457493C5A56847', # /usr/lib64/firefox (Fedora)
-    '3B6073811A6ABF12', # /usr/lib/firefox-esr (Debian)
-    '46F492E0ACFF84D4', # /usr/lib/firefox-developer-edition (Arch)
+    '4F96D1932A9F858E',  # /usr/lib/firefox (Ubuntu, Debian, Mint, Arch,
+                         # Pop!_OS, Zorin OS, Manjaro, KDE Neon, elementary OS)
+    '11457493C5A56847',  # /usr/lib64/firefox (Fedora)
+    '3B6073811A6ABF12',  # /usr/lib/firefox-esr (Debian)
+    '46F492E0ACFF84D4',  # /usr/lib/firefox-developer-edition (Arch)
 ]
 
 
@@ -59,7 +59,7 @@ def _patch_imported_profiles(profiles_file):
                     # that might have had it.
                     for other_section in profiles:
                         if other_section.startswith('Profile') and \
-                            other_section != section:
+                                other_section != section:
                             profiles.remove_option(other_section, 'Default')
                     # Delete the Install section as it is meaningless
                     # (and unused) in legacy mode.
@@ -72,6 +72,7 @@ def _patch_imported_profiles(profiles_file):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2 or not os.path.isfile(sys.argv[1]):
-        print('Usage: {} /path/to/profiles_dir/profiles.ini'.format(sys.argv[0])
+        expected_arg = '/path/to/profiles_dir/profiles.ini'
+        print('Usage: {} {}'.format(sys.argv[0], expected_arg))
         sys.exit(1)
     _patch_imported_profiles(sys.argv[1])
